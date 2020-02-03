@@ -1,3 +1,6 @@
+from matplotlib import pyplot as plt
+
+import numpy
 import numpy.random as random
 
 # Вариант: 5
@@ -6,27 +9,41 @@ import numpy.random as random
 # 5
 
 # Интенсивность потока обработки
+K = 6
 miu = 5
 
+receivedRequestTimes = []
+doneRequestTimes = []
 
-def value_by_erlang_distribution_6(rate):
-    return sum(random.exponential([rate], 6))
+averageTimes = []
+
+
+def value_by_erlang_distribution_k(rate):
+    l = 1 / (rate * K)
+    return sum(random.exponential([l], K))
 
 
 def value_by_uniform_distribution(rate):
-    return random.uniform(rate - 0.1 * rate, rate + 0.1 * rate)
+    # by design
+    return random.exponential(1 / rate)
+    # return random.exp(1 / rate - 0.05 * miu, 1 / rate + 0.05 * miu)
 
 
 def new_request_time(system_time, rate):
-    return system_time + value_by_uniform_distribution(rate)
+    request_time = system_time + value_by_uniform_distribution(rate)
+    receivedRequestTimes.append(request_time)
+    return request_time
 
 
 def new_free_time(system_time):
-    return system_time + value_by_uniform_distribution(miu)
+    free_time = system_time + value_by_erlang_distribution_k(miu)
+    doneRequestTimes.append(free_time)
+    return free_time
 
 
 # Интенсивность входного потока
-inputRates = [a / 10 * miu for a in range(1, 11)]
+inputRates = [a / 10 * miu for a in range(1, 10)]
+
 
 for inputRate in inputRates:
     bufferSize = 0
@@ -41,7 +58,7 @@ for inputRate in inputRates:
     requestTime = new_request_time(requestTime, inputRate)
     freeTime = requestTime
 
-    while done < 1_000_000:
+    while done < 1_000_0:
         if requestTime <= freeTime:
             # Мы заняты
             systemTime = requestTime
@@ -62,4 +79,32 @@ for inputRate in inputRates:
             else:
                 loadedFlag = False
                 freeTime = requestTime
-print("I'm done! =)")
+    i = min(len(receivedRequestTimes), len(doneRequestTimes))
+    deltaTimes = [doneRequestTimes[a] - receivedRequestTimes[a] for a in range(i)]
+    averageTimes.append(sum(deltaTimes) / len(deltaTimes))
+    receivedRequestTimes.clear()
+    doneRequestTimes.clear()
+
+
+def calcTeorT():
+    averageTimes = []
+    for inputRate in inputRates:
+        #
+        p = inputRate / miu
+        # коэфициент вариации
+        v = 1 / numpy.sqrt(K)
+        # Среднее число запросов в системе
+        L = (p ** 2 * (1 + v ** 2)) / (2 * (1 - p)) + p
+        # Среднее время прабывания
+        T = L / inputRate
+        averageTimes.append(T)
+    return averageTimes
+
+
+plt.plot(inputRates, averageTimes, label='Практичесское', lw=4, color='black', alpha=0.5)
+plt.plot(inputRates, calcTeorT(), label='Теоритичесское', lw=4, color='red', alpha=0.5)
+plt.xlabel('Инт. входного потока')
+plt.ylabel('Ср. t в системе')
+plt.grid()
+plt.legend()
+plt.show()
