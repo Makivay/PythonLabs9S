@@ -62,6 +62,4 @@ for inputRate in inputRates:
             else:
                 loadedFlag = False
                 freeTime = requestTime
-        if done % 1_000 == 0:
-            print(done + ": " + bufferSize)
 print("I'm done! =)")
